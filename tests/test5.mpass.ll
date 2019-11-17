@@ -14,8 +14,10 @@ entry:
   %0 = bitcast i8* %call to i32*
   store i32* %0, i32** %num, align 8
   %1 = load i32*, i32** %num, align 8
-  %2 = load i32, i32* %1, align 4
-  %call1 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([10 x i8], [10 x i8]* @.str, i64 0, i64 0), i32 %2)
+  store i32 100, i32* %1, align 4
+  %2 = load i32*, i32** %num, align 8
+  %3 = load i32, i32* %2, align 4
+  %call1 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([10 x i8], [10 x i8]* @.str, i64 0, i64 0), i32 %3)
   ret void
 }
 

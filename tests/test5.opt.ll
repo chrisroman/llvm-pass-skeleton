@@ -11,6 +11,7 @@ define void @_Z10deref_nullv() #0 {
 entry:
   %call = call i8* @malloc(i64 4)
   %0 = bitcast i8* %call to i32*
+  store i32 100, i32* %0, align 4
   %1 = load i32, i32* %0, align 4
   %call1 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([10 x i8], [10 x i8]* @.str, i64 0, i64 0), i32 %1)
   ret void

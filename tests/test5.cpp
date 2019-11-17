@@ -3,6 +3,7 @@
 
 void deref_null() {
     int *num = (int*) malloc(sizeof(int));
+    *num = 100;
     printf("num = %d\n", *num);
 }
 

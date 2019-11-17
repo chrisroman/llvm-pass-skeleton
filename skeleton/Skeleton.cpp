@@ -277,7 +277,7 @@ namespace {
       return deref_map[p].get();
     }
 
-    LatticeElt transferFunc(Instruction *I, LatticeElt elt) {
+    LatticeElt transferFunc(AliasAnalysis *AA, Instruction *I, LatticeElt elt) {
       LatticeElt res = elt;
       if (auto* store = dyn_cast<StoreInst>(I)) {
         Value *v = store->getValueOperand();
@@ -285,11 +285,13 @@ namespace {
         if (v == ConstantPointerNull::get(static_cast<PointerType*>(v->getType()))) {
           // Instruction is p == nullptr.
           // TODO: Now everything that may alias p should be PossiblyNull
+          for (Value *other_p : getPtrs(*I->getParent()->getParent())) {
+            if (AA->alias(p, other_p) != NoAlias) {
+              res[deref(other_p)] = NullStatus::PossiblyNull;
+            }
+          }
           res[deref(p)] = NullStatus::PossiblyNull;
         } else {
-          // Instruction p = v
-          // Get the meet of NullStatus that everything can alias v
-          // TODO: Set everything that can alias p to be that meet
           res[deref(p)] = res[v];
         }
       } else if (auto* load = dyn_cast<LoadInst>(I)) {
@@ -340,7 +342,7 @@ namespace {
     }
 
     // Dataflow analysis
-    std::unordered_map<Instruction*, LatticeElt> nullptr_analysis(Function& F) {
+    std::unordered_map<Instruction*, LatticeElt> nullptr_analysis(Function& F, AliasAnalysis *AA) {
       // TODO: Set deref_map
       init_deref_map(&F);
 
@@ -373,7 +375,7 @@ namespace {
 
         in[I] = meet(F, out, preds);
         auto old_out = out[I];
-        out[I] = transferFunc(I, in[I]);
+        out[I] = transferFunc(AA, I, in[I]);
         if (old_out != out[I]) {
           // Add all predecessors to worklist (modulo those already in the worklist)
           for (Instruction *IPred : preds) {
@@ -447,7 +449,7 @@ namespace {
 
       Module *M = F.getParent();
       AliasAnalysis *AA = &getAnalysis<AAResultsWrapperPass>().getAAResults();
-      std::unordered_map<Instruction*, LatticeElt> NPA = nullptr_analysis(F);
+      std::unordered_map<Instruction*, LatticeElt> NPA = nullptr_analysis(F, AA);
       //Value *nullp = M->getGlobalVariable("nullp", true);
       Value *nullp = nullptr;
       //errs() << "nullp = " << *nullp << "\n";
