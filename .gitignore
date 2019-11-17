@@ -1,1 +1,6 @@
 build
+*.ll
+.DS_Store
+*.o
+*.out
+*.ppm

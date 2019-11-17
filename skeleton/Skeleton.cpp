@@ -307,12 +307,12 @@ namespace {
         }
       } else if (auto* cast = dyn_cast<CastInst>(I)) {
         res[cast] = res[cast->getOperand(0)];
-        errs() << "***********************\n";
-        errs() << "Found operation cast : " << *cast << "\n";
-        for (auto& operand : cast->operands()) {
-          errs() << *operand << "\n";
-        }
-        errs() << "***********************\n";
+        // errs() << "***********************\n";
+        // errs() << "Found operation cast : " << *cast << "\n";
+        // for (auto& operand : cast->operands()) {
+        //   errs() << *operand << "\n";
+        // }
+        // errs() << "***********************\n";
       }
       // TODO: figure out how malloc sets a pointer
       // TODO: figure out how referencing with & sets a pointer
@@ -323,7 +323,7 @@ namespace {
     void init_deref_map(Function *F) {
       for (auto& B : *F) {
         for (auto& I : B) {
-          errs() << "Instruction " << I << "    as a value: " << &I << "\n";
+          //errs() << "Instruction " << I << "    as a value: " << &I << "\n";
           //deref_map.insert({&I, make_unique<int>(-1)});
           deref_map[&I] = make_unique<int>(-1);
         }
@@ -369,9 +369,9 @@ namespace {
         worklist_set.erase(I);
 
         auto preds = getPredecessors(I);
-        if (preds.empty()) {
-          errs() << "Skipping instruction " << *I << "\n";
-        }
+        // if (preds.empty()) {
+        //   errs() << "Skipping instruction " << *I << "\n";
+        // }
 
         in[I] = meet(F, out, preds);
         auto old_out = out[I];
@@ -379,7 +379,7 @@ namespace {
         if (old_out != out[I]) {
           // Add all predecessors to worklist (modulo those already in the worklist)
           for (Instruction *IPred : preds) {
-            errs() << "IPred = " << *IPred << "\n";
+            // errs() << "IPred = " << *IPred << "\n";
             if (worklist_set.find(IPred) == worklist_set.end()) {
               worklist.push_back(IPred);
               worklist_set.insert(IPred);
@@ -433,12 +433,8 @@ namespace {
     }
 
     virtual bool runOnFunction(Function &F) override {
-      // TODO: Skipping main for now
-      if (F.getName() == "main") {
-        return false;
-      }
-      errs() << "Function body before: " << F << "\n";
-      printSet(getPtrs(F));
+      // errs() << "Function body before: " << F << "\n";
+      // printSet(getPtrs(F));
       //errs() << "-------------\n";
 
       // Value *null_value = ConstantPointerNull::get(Type::getInt8PtrTy(F.getContext()));
@@ -479,14 +475,14 @@ namespace {
           //   addNullCheck(I, p);
           // }
           if (NPA[I][p] == NullStatus::PossiblyNull) {
-            errs() << "NPA[I][p] = PossiblyNull\n";
+            // errs() << "NPA[I][p] = PossiblyNull\n";
             addNullCheck(I, p);
           } else {
-            errs() << "NPA[I][p] = DefinitelyNonNull\n";
+            // errs() << "NPA[I][p] = DefinitelyNonNull\n";
           }
         }
       }
-      errs() << "-------------\n";
+      // errs() << "-------------\n";
 
       // errs() << "Function body after: " << F << "\n";
       // printSet(getPtrs(F));

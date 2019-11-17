@@ -1,6 +1,6 @@
 #pragma once
 
-void escape(void *p) {
+inline void escape(void *p) {
     asm volatile("" : : "g"(p) : "memory");
 }
 void *nullp = nullptr;
