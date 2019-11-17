@@ -1,0 +1,5 @@
+Interesting to note that stack variables are represented as pointer types. So
+`load`ing a stack variable results in a pointer dereference, because it's
+dereferencing a pointer to the stack. Without doing some null pointer analysis,
+this would mean we're doing a null check for every variable on the stack, which
+can be a problem
