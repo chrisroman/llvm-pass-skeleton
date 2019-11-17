@@ -45,7 +45,6 @@ entry:
   store i32 0, i32* %retval, align 4
   store i32 %argc, i32* %argc.addr, align 4
   store i8** %argv, i8*** %argv.addr, align 8
-  call void @_Z6escapePv(i8* bitcast (i8** @nullp to i8*))
   %0 = load i32, i32* %argc.addr, align 4
   call void @_Z10deref_nulli(i32 %0)
   ret i32 0
@@ -61,4 +60,4 @@ attributes #2 = { nounwind }
 !0 = !{i32 1, !"wchar_size", i32 4}
 !1 = !{i32 7, !"PIC Level", i32 2}
 !2 = !{!"clang version 9.0.0 (tags/RELEASE_900/final)"}
-!3 = !{i32 3533460}
+!3 = !{i32 3533462}

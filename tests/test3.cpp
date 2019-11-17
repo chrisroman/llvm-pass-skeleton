@@ -10,7 +10,7 @@ void deref_null(int argc) {
 }
 
 int main(int argc, char** argv) {
-    escape(&nullp);
+    //escape(&nullp);
     deref_null(argc);
     return 0;
 }

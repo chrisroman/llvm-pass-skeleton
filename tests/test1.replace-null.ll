@@ -1,4 +1,4 @@
-; ModuleID = 'test1.replace-null.ll'
+; ModuleID = 'test1.mpass.ll'
 source_filename = "test1.cpp"
 target datalayout = "e-m:o-i64:64-f80:128-n8:16:32:64-S128"
 target triple = "x86_64-apple-macosx10.12.0"
@@ -9,45 +9,61 @@ target triple = "x86_64-apple-macosx10.12.0"
 ; Function Attrs: noinline nounwind ssp uwtable
 define void @_Z6escapePv(i8* %p) #0 {
 entry:
-  call void asm sideeffect "", "imr,~{memory},~{dirflag},~{fpsr},~{flags}"(i8* %p) #4, !srcloc !3
+  %p.addr = alloca i8*, align 8
+  store i8* %p, i8** %p.addr, align 8
+  %0 = load i8*, i8** %p.addr, align 8
+  call void asm sideeffect "", "imr,~{memory},~{dirflag},~{fpsr},~{flags}"(i8* %0) #4, !srcloc !3
   ret void
 }
 
 ; Function Attrs: noinline nounwind ssp uwtable
 define void @_Z3fooPv(i8* %p) #0 {
 entry:
+  %p.addr = alloca i8*, align 8
+  store i8* %p, i8** %p.addr, align 8
   ret void
 }
 
 ; Function Attrs: noinline ssp uwtable
 define void @_Z10deref_nulli(i32 %argc) #1 {
 entry:
-  %cmp = icmp eq i32 %argc, 1
+  %argc.addr = alloca i32, align 4
+  %p = alloca i32*, align 8
+  %q = alloca i32*, align 8
+  store i32 %argc, i32* %argc.addr, align 4
+  store i32* null, i32** %p, align 8
+  %0 = load i32, i32* %argc.addr, align 4
+  %cmp = icmp eq i32 %0, 1
   br i1 %cmp, label %if.then, label %if.end
 
 if.then:                                          ; preds = %entry
   %call = call i8* @_Znwm(i64 4) #5
-  %0 = bitcast i8* %call to i32*
-  store i32 5, i32* %0, align 4
+  %1 = bitcast i8* %call to i32*
+  store i32 5, i32* %1, align 4
+  store i32* %1, i32** %p, align 8
   br label %if.end
 
 if.end:                                           ; preds = %if.then, %entry
-  %p.0 = phi i32* [ %0, %if.then ], [ null, %entry ]
-  %cmp1 = icmp eq i32 %argc, 2
+  %2 = load i32*, i32** %p, align 8
+  store i32* %2, i32** %q, align 8
+  %3 = load i32, i32* %argc.addr, align 4
+  %cmp1 = icmp eq i32 %3, 2
   br i1 %cmp1, label %if.then2, label %if.end4
 
 if.then2:                                         ; preds = %if.end
   %call3 = call i8* @_Znwm(i64 4) #5
-  %1 = bitcast i8* %call3 to i32*
-  store i32 10, i32* %1, align 4
+  %4 = bitcast i8* %call3 to i32*
+  store i32 10, i32* %4, align 4
+  store i32* %4, i32** %q, align 8
   br label %if.end4
 
 if.end4:                                          ; preds = %if.then2, %if.end
-  %q.0 = phi i32* [ %1, %if.then2 ], [ %p.0, %if.end ]
-  %2 = bitcast i32* %p.0 to i8*
-  call void @_Z3fooPv(i8* %2)
-  %3 = bitcast i32* %q.0 to i8*
-  call void @_Z3fooPv(i8* %3)
+  %5 = load i32*, i32** %p, align 8
+  %6 = bitcast i32* %5 to i8*
+  call void @_Z3fooPv(i8* %6)
+  %7 = load i32*, i32** %q, align 8
+  %8 = bitcast i32* %7 to i8*
+  call void @_Z3fooPv(i8* %8)
   ret void
 }
 
@@ -57,7 +73,14 @@ declare noalias i8* @_Znwm(i64) #2
 ; Function Attrs: noinline norecurse ssp uwtable
 define i32 @main(i32 %argc, i8** %argv) #3 {
 entry:
-  call void @_Z10deref_nulli(i32 %argc)
+  %retval = alloca i32, align 4
+  %argc.addr = alloca i32, align 4
+  %argv.addr = alloca i8**, align 8
+  store i32 0, i32* %retval, align 4
+  store i32 %argc, i32* %argc.addr, align 4
+  store i8** %argv, i8*** %argv.addr, align 8
+  %0 = load i32, i32* %argc.addr, align 4
+  call void @_Z10deref_nulli(i32 %0)
   ret i32 0
 }
 

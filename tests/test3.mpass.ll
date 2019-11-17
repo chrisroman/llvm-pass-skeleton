@@ -46,7 +46,6 @@ entry:
   store i32 0, i32* %retval, align 4
   store i32 %argc, i32* %argc.addr, align 4
   store i8** %argv, i8*** %argv.addr, align 8
-  call void @_Z6escapePv(i8* bitcast (i8** @nullp to i8*))
   %0 = load i32, i32* %argc.addr, align 4
   call void @_Z10deref_nulli(i32 %0)
   ret i32 0
@@ -54,10 +53,10 @@ entry:
 
 define void @nullcheck(i8*) {
   %2 = icmp eq i8* %0, null
-  %3 = call i32 (...) @printf(i8* getelementptr inbounds ([34 x i8], [34 x i8]* @0, i32 0, i32 0))
-  br i1 %2, label %4, label %5
+  br i1 %2, label %3, label %5
 
-4:                                                ; preds = %1
+3:                                                ; preds = %1
+  %4 = call i32 (...) @printf(i8* getelementptr inbounds ([34 x i8], [34 x i8]* @0, i32 0, i32 0))
   call void @exit(i32 1)
   unreachable
 
@@ -79,4 +78,4 @@ attributes #2 = { nounwind }
 !0 = !{i32 1, !"wchar_size", i32 4}
 !1 = !{i32 7, !"PIC Level", i32 2}
 !2 = !{!"clang version 9.0.0 (tags/RELEASE_900/final)"}
-!3 = !{i32 3533460}
+!3 = !{i32 3533462}

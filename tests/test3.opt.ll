@@ -17,13 +17,9 @@ entry:
 define void @_Z10deref_nulli(i32 %argc) #0 {
 entry:
   %argc.addr = alloca i32, align 4
-  %0 = bitcast i32* %argc.addr to i8*
-  call void @nullcheck(i8* %0)
   store i32 %argc, i32* %argc.addr, align 4
-  %1 = bitcast i32* %argc.addr to i8*
-  call void @nullcheck(i8* %1)
-  %2 = load i32, i32* %argc.addr, align 4
-  %cmp = icmp eq i32 %2, 1
+  %0 = load i32, i32* %argc.addr, align 4
+  %cmp = icmp eq i32 %0, 1
   br i1 %cmp, label %if.then, label %if.end
 
 if.then:                                          ; preds = %entry
@@ -31,8 +27,8 @@ if.then:                                          ; preds = %entry
 
 if.end:                                           ; preds = %if.then, %entry
   %p.0 = phi i32* [ %argc.addr, %if.then ], [ null, %entry ]
-  %3 = bitcast i32* %p.0 to i8*
-  call void @nullcheck(i8* %3)
+  %1 = bitcast i32* %p.0 to i8*
+  call void @nullcheck(i8* %1)
   store i32 42, i32* %p.0, align 4
   ret void
 }
@@ -40,17 +36,16 @@ if.end:                                           ; preds = %if.then, %entry
 ; Function Attrs: noinline norecurse nounwind ssp uwtable
 define i32 @main(i32 %argc, i8** %argv) #1 {
 entry:
-  call void @_Z6escapePv(i8* bitcast (i8** @nullp to i8*))
   call void @_Z10deref_nulli(i32 %argc)
   ret i32 0
 }
 
 define void @nullcheck(i8*) {
   %2 = icmp eq i8* %0, null
-  %3 = call i32 (...) @printf(i8* getelementptr inbounds ([34 x i8], [34 x i8]* @0, i32 0, i32 0))
-  br i1 %2, label %4, label %5
+  br i1 %2, label %3, label %5
 
-4:                                                ; preds = %1
+3:                                                ; preds = %1
+  %4 = call i32 (...) @printf(i8* getelementptr inbounds ([34 x i8], [34 x i8]* @0, i32 0, i32 0))
   call void @exit(i32 1)
   unreachable
 
@@ -72,4 +67,4 @@ attributes #2 = { nounwind }
 !0 = !{i32 1, !"wchar_size", i32 4}
 !1 = !{i32 7, !"PIC Level", i32 2}
 !2 = !{!"clang version 9.0.0 (tags/RELEASE_900/final)"}
-!3 = !{i32 3533460}
+!3 = !{i32 3533462}

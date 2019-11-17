@@ -119,11 +119,17 @@ namespace {
     void createNullCheckFunc(Module &M) {
       FunctionType *FT = FunctionType::get(Type::getVoidTy(M.getContext()), {Type::getInt8PtrTy(M.getContext())}, false);
       Function *nullcheck_func = Function::Create(FT, Function::ExternalLinkage, "nullcheck", M);
-      Function *printf_func = getPrintfFunc(&M);
 
       BasicBlock *then = BasicBlock::Create(M.getContext(), "", nullcheck_func);
       {
         IRBuilder<> builder(then);
+
+        // Add printf call
+        Function *printf_func = getPrintfFunc(&M);
+        Value *str = builder.CreateGlobalStringPtr("Found a null pointer. Exiting...\n");
+        CallInst *call = builder.CreateCall(printf_func, {str}, "");
+
+        // Add exit call
         Function *exit_func = getExitFunc(&M);
         Value *one = ConstantInt::getSigned(Type::getInt32Ty(M.getContext()), 1);
         builder.CreateCall(exit_func->getFunctionType(),
@@ -143,10 +149,6 @@ namespace {
         IRBuilder<> builder(block);
         Value *p = &*nullcheck_func->arg_begin();
         Value *is_null = builder.CreateICmpEQ(p, ConstantPointerNull::get(static_cast<PointerType*>(p->getType())));
-
-        // Add printf call
-        Value *str = builder.CreateGlobalStringPtr("Found a null pointer. Exiting...\n");
-        CallInst *call = builder.CreateCall(printf_func, {str}, "");
 
         // If argument is nullptr, jump to then block; otherwise, jump to end block
         builder.CreateCondBr(is_null, then, end);
@@ -259,7 +261,10 @@ namespace {
       return res;
     }
 
-    LatticeElt meet(std::unordered_map<Instruction*, LatticeElt>& out, const std::unordered_set<Instruction*>& preds) {
+    LatticeElt meet(Function& F, std::unordered_map<Instruction*, LatticeElt>& out, const std::unordered_set<Instruction*>& preds) {
+      if (preds.empty()) {
+        return Top(F);
+      }
       LatticeElt res = out[*preds.begin()];
       for (auto it = next(preds.begin()); it != preds.end(); ++it) {
         res = meet(res, out[*it]);
@@ -278,8 +283,13 @@ namespace {
         Value *v = store->getValueOperand();
         Value *p = store->getPointerOperand();
         if (v == ConstantPointerNull::get(static_cast<PointerType*>(v->getType()))) {
+          // Instruction is p == nullptr.
+          // TODO: Now everything that may alias p should be PossiblyNull
           res[deref(p)] = NullStatus::PossiblyNull;
         } else {
+          // Instruction p = v
+          // Get the meet of NullStatus that everything can alias v
+          // TODO: Set everything that can alias p to be that meet
           res[deref(p)] = res[v];
         }
       } else if (auto* load = dyn_cast<LoadInst>(I)) {
@@ -287,7 +297,20 @@ namespace {
       } else if (auto* alloca = dyn_cast<AllocaInst>(I)) {
         res[alloca] = NullStatus::DefinitelyNonNull;
       } else if (auto* call = dyn_cast<CallInst>(I)) {
-        // e.g. new
+        // TODO: must account for calls to "new"
+        if (call->getCalledFunction() && call->getCalledFunction()->getName() == "malloc") {
+          res[call] = NullStatus::DefinitelyNonNull;
+        } else {
+          res[call] = NullStatus::PossiblyNull;
+        }
+      } else if (auto* cast = dyn_cast<CastInst>(I)) {
+        res[cast] = res[cast->getOperand(0)];
+        errs() << "***********************\n";
+        errs() << "Found operation cast : " << *cast << "\n";
+        for (auto& operand : cast->operands()) {
+          errs() << *operand << "\n";
+        }
+        errs() << "***********************\n";
       }
       // TODO: figure out how malloc sets a pointer
       // TODO: figure out how referencing with & sets a pointer
@@ -310,6 +333,7 @@ namespace {
       for (auto &B : F) {
         for (auto &I : B) {
           top[&I] = NullStatus::PossiblyNull;
+          //top[deref(&I)] = NullStatus::PossiblyNull;
         }
       }
       return top;
@@ -344,15 +368,16 @@ namespace {
 
         auto preds = getPredecessors(I);
         if (preds.empty()) {
-          continue;
+          errs() << "Skipping instruction " << *I << "\n";
         }
 
-        in[I] = meet(out, preds);
+        in[I] = meet(F, out, preds);
         auto old_out = out[I];
         out[I] = transferFunc(I, in[I]);
         if (old_out != out[I]) {
           // Add all predecessors to worklist (modulo those already in the worklist)
           for (Instruction *IPred : preds) {
+            errs() << "IPred = " << *IPred << "\n";
             if (worklist_set.find(IPred) == worklist_set.end()) {
               worklist.push_back(IPred);
               worklist_set.insert(IPred);
@@ -422,6 +447,7 @@ namespace {
 
       Module *M = F.getParent();
       AliasAnalysis *AA = &getAnalysis<AAResultsWrapperPass>().getAAResults();
+      std::unordered_map<Instruction*, LatticeElt> NPA = nullptr_analysis(F);
       //Value *nullp = M->getGlobalVariable("nullp", true);
       Value *nullp = nullptr;
       //errs() << "nullp = " << *nullp << "\n";
@@ -441,14 +467,20 @@ namespace {
             continue;
           }
 
-          // for (Value *cast : bitcasts) {
-          //   errs() << "AA->alias(" << *p << ", " << *cast << ") = " << AA->alias(p, cast) << "\n";
+            // for (Value *cast : bitcasts) {
+            //   errs() << "AA->alias(" << *p << ", " << *cast << ") = " << AA->alias(p, cast) << "\n";
+            // }
+          // if (nullp == nullptr) {
+          //   addNullCheck(I, p);
+          // } else if (AA->alias(p, nullp) != NoAlias) {
+          //   errs() << "AA->alias(" << *p << ", " << *nullp << ") = " << AA->alias(p, nullp) << "\n";
+          //   addNullCheck(I, p);
           // }
-          if (nullp == nullptr) {
+          if (NPA[I][p] == NullStatus::PossiblyNull) {
+            errs() << "NPA[I][p] = PossiblyNull\n";
             addNullCheck(I, p);
-          } else if (AA->alias(p, nullp) != NoAlias) {
-            errs() << "AA->alias(" << *p << ", " << *nullp << ") = " << AA->alias(p, nullp) << "\n";
-            addNullCheck(I, p);
+          } else {
+            errs() << "NPA[I][p] = DefinitelyNonNull\n";
           }
         }
       }
